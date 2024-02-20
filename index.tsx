@@ -8,9 +8,10 @@ import "./styles.css";
 
 import { Devs } from "@utils/constants";
 import { classes } from "@utils/misc";
+import { useForceUpdater } from "@utils/react";
 import definePlugin from "@utils/types";
 import { findByPropsLazy } from "@webpack";
-import { Alerts, Button, ContextMenuApi, FluxDispatcher, Menu, useEffect, useState } from "@webpack/common";
+import { Alerts, Button, ContextMenuApi, FluxDispatcher, Menu, React, useState } from "@webpack/common";
 import { Channel } from "discord-types/general";
 import { Settings } from "Vencord";
 
@@ -66,8 +67,8 @@ export default definePlugin({
     sections: null as number[] | null,
     instance: null as any | null,
     x: 0,
-    forceUpdate() {
-        this.instance?.forceUpdate();
+    forceUpdate(instance?: any) {
+        (instance ?? this.instance)?.forceUpdate();
         this.x++;
     },
     start() {
@@ -108,10 +109,12 @@ export default definePlugin({
 
     usePinCount(channelIds: string[]) {
         const [cats, setCats] = useState<number[]>([]);
-        useEffect(() => {
+        const forceUpdate = useForceUpdater();
+        React.useLayoutEffect(() => {
             if (channelIds.length > 0) {
                 setCats(this.getSections());
             }
+            forceUpdate();
         }, [this.x, channelIds]);
 
         return cats;
@@ -159,7 +162,7 @@ export default definePlugin({
                             <Menu.MenuItem
                                 id="vc-pindms-edit-category"
                                 label="Edit Category"
-                                action={() => openCategoryModal(category.id, null, this.forceUpdate.bind(this))}
+                                action={() => openCategoryModal(category.id, null, () => this.forceUpdate(instance))}
                             />
 
                             <Menu.MenuItem

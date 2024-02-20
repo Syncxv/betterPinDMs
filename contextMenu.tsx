@@ -5,21 +5,36 @@
  */
 
 import { addContextMenuPatch, findGroupChildrenByChildId, NavContextMenuPatchCallback, removeContextMenuPatch } from "@api/ContextMenu";
+import { classNameFactory } from "@api/Styles";
 import { ModalContent, ModalFooter, ModalHeader, ModalProps, ModalRoot, openModal } from "@utils/modal";
 import { extractAndLoadChunksLazy, findComponentByCodeLazy } from "@webpack";
-import { Button, Forms, Menu, TextInput, Toasts, useEffect, useState } from "@webpack/common";
+import { Button, Forms, Menu, Text, TextInput, Toasts, useEffect, useState } from "@webpack/common";
 
 import { addCategory as createCategory, addChannelToCategory, categories, Category, getCategory, isPinned, removeChannelFromCategory, updateCategory } from "./data";
 
 interface ColorPickerProps {
     color: number | null;
     showEyeDropper?: boolean;
+    suggestedColors?: string[];
     onChange(value: number | null): void;
 }
 
-const ColorPicker = findComponentByCodeLazy<ColorPickerProps>(".BACKGROUND_PRIMARY).hex");
+interface ColorPickerWithSwatchesProps {
+    defaultColor: number;
+    colors: number[];
+    value: number;
+    disabled?: boolean;
+    onChange(value: number | null): void;
+    renderDefaultButton?: () => React.ReactNode;
+    renderCustomButton?: () => React.ReactNode;
+}
+
+const ColorPicker = findComponentByCodeLazy<ColorPickerProps>(".Messages.USER_SETTINGS_PROFILE_COLOR_SELECT_COLOR", ".BACKGROUND_PRIMARY)");
+const ColorPickerWithSwatches = findComponentByCodeLazy<ColorPickerWithSwatchesProps>('"color-picker"', ".customContainer");
 
 export const requireSettingsMenu = extractAndLoadChunksLazy(['name:"UserSettings"'], /createPromise:.{0,20}el\("(.+?)"\).{0,50}"UserSettings"/);
+
+const cl = classNameFactory("vc-pindms-modal-");
 
 interface Props {
     categoryId: string | null;
@@ -38,7 +53,7 @@ const useCategory = (categoryId: string | null, initalChannelId: string | null) 
             setCategory({
                 id: Toasts.genId(),
                 name: `Pin Category ${categories.length + 1}`,
-                color: 0,
+                color: 10070709,
                 channels: [initalChannelId]
             });
     }, []);
@@ -67,26 +82,43 @@ export function NewCategoryModal({ categoryId, modalProps, initalChannelId, forc
     return (
         <ModalRoot {...modalProps}>
             <ModalHeader>
-                <Forms.FormTitle>New Category</Forms.FormTitle>
+                <Text variant="heading-lg/semibold" style={{ flexGrow: 1 }}>New Category</Text>
             </ModalHeader>
 
-            <ModalContent>
-                <Forms.FormTitle>Name</Forms.FormTitle>
-                <TextInput
-                    value={category.name}
-                    onChange={e => setCategory({ ...category, name: e })}
-                />
+            <ModalContent className={cl("content")}>
+                <Forms.FormSection>
+                    <Forms.FormTitle>Name</Forms.FormTitle>
+                    <TextInput
+                        value={category.name}
+                        onChange={e => setCategory({ ...category, name: e })}
+                    />
+                </Forms.FormSection>
 
-                <Forms.FormTitle>Color</Forms.FormTitle>
-                <ColorPicker
-                    key={category.name}
-                    color={category.color}
-                    onChange={c => setCategory({ ...category, color: c! })}
-                />
+                <Forms.FormDivider />
+
+                <Forms.FormSection>
+                    <Forms.FormTitle>Color</Forms.FormTitle>
+                    <ColorPickerWithSwatches
+                        key={category.name}
+                        defaultColor={10070709}
+                        colors={[1752220, 3066993, 3447003, 10181046, 15277667, 15844367, 15105570, 15158332, 9807270, 6323595, 1146986, 2067276, 2123412, 7419530, 11342935, 12745742, 11027200, 10038562, 9936031, 5533306]}
+                        onChange={c => setCategory({ ...category, color: c! })}
+                        value={category.color}
+                        renderDefaultButton={() => null}
+                        renderCustomButton={() => (
+                            <ColorPicker
+                                color={category.color}
+                                onChange={c => setCategory({ ...category, color: c! })}
+                                key={category.name}
+                                showEyeDropper={false}
+                            />
+                        )}
+                    />
+                </Forms.FormSection>
             </ModalContent>
 
             <ModalFooter>
-                <Button onClick={onClick} disabled={!category.name}>{categoryId ? "Edit" : "Create"}</Button>
+                <Button onClick={onClick} disabled={!category.name}>{categoryId ? "Save" : "Create"}</Button>
             </ModalFooter>
         </ModalRoot>
     );
