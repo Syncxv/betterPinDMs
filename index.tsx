@@ -10,10 +10,11 @@ import { Devs } from "@utils/constants";
 import { classes } from "@utils/misc";
 import definePlugin from "@utils/types";
 import { findByPropsLazy } from "@webpack";
-import { ContextMenuApi, FluxDispatcher, Menu, useEffect, useState } from "@webpack/common";
+import { Alerts, Button, ContextMenuApi, FluxDispatcher, Menu, useEffect, useState } from "@webpack/common";
 import { Channel } from "discord-types/general";
+import { Settings } from "Vencord";
 
-import { addContextMenus, removeContextMenus, requireSettingsMenu } from "./contextMenu";
+import { addContextMenus, openCategoryModal, removeContextMenus, requireSettingsMenu } from "./contextMenu";
 import { categories, getCategories } from "./data";
 import * as data from "./data";
 
@@ -29,30 +30,31 @@ export default definePlugin({
     patches: [
         {
             find: ".privateChannelsHeaderContainer,",
+            predicate: () => !Settings.plugins.PinDMs?.enabled,
             replacement: [
                 {
-                    match: /(?<=\w,{channels:\w,)privateChannelIds:(\w)/,
+                    match: /(?<=\i,{channels:\i,)privateChannelIds:(\i)/,
                     replace: "privateChannelIds:$1.filter(c=>!$self.isPinned(c)),pinCount2:$self.usePinCount($1)"
                 },
                 {
-                    match: /(renderRow:this\.renderRow,sections:)(\[\w,.{0,50})Math/,
-                    replace: "$1$self.sections = $2...this.props.pinCount2??[],Math"
+                    match: /(renderRow:this\.renderRow,sections:)(\[\i,)/,
+                    replace: "$1$self.sections = $2...this.props.pinCount2??[],"
                 },
                 {
                     match: /this\.renderSection=(\i)=>{/,
                     replace: "$&if($self.isCategoryIndex($1.section))return $self.renderCategory(this,$1);"
                 },
                 // {
-                //     match: /(this\.renderDM=\((\w),(\w)\)=>{.{1,200}this\.state,.{1,200})(\w\[\w\];return)/,
+                //     match: /(this\.renderDM=\((\i),(\i)\)=>{.{1,200}this\.state,.{1,200})(\i\[\i\];return)/,
                 //     replace: "$1$self.isCategoryIndex($2)?$self.getChannel($2,$3,this.props.channels):$4"
                 // },
                 {
 
-                    match: /(this\.renderDM=\((\w),(\w)\)=>{)(.{1,300}return null==\w.{1,20}\((\w\.default),{channel:)/,
+                    match: /(this\.renderDM=\((\i),(\i)\)=>{)(.{1,300}return null==\i.{1,20}\((\i\.default),{channel:)/,
                     replace: "$1if($self.isCategoryIndex($2))return $self.renderChannel(this,$2,$3,this.props.channels,$5);$4"
                 },
                 {
-                    match: /(this\.getRowHeight=.{1,100}return 1===)(\w)/,
+                    match: /(this\.getRowHeight=.{1,100}return 1===)(\i)/,
                     replace: "$1($2-$self.categoryLen())"
                 }
             ]
@@ -69,6 +71,25 @@ export default definePlugin({
         this.x++;
     },
     start() {
+        if (Settings.plugins.PinDMs?.enabled) {
+            console.log("disable PinDMs to use this plugin");
+            setTimeout(() => {
+                Alerts.show({
+                    title: "PinDMs Enabled",
+                    body: "BetterPinDMs requires PinDMs to be disabled. Please disable it to use this plugin.",
+                    confirmText: "Disable",
+                    confirmColor: Button.Colors.RED,
+                    cancelText: "Cancel",
+
+                    onConfirm: () => {
+                        Settings.plugins.PinDMs.enabled = false;
+                        location.reload();
+                    },
+                });
+            }, 5_000);
+            return;
+        }
+
         addContextMenus(this.forceUpdate.bind(this));
         requireSettingsMenu();
     },
@@ -124,6 +145,9 @@ export default definePlugin({
         return (
             <h1
                 className={classes(headerClasses.privateChannelsHeaderContainer, "vc-pindms-section-container")}
+                style={{
+                    color: `#${category.color.toString(16).padStart(6, "0")}`
+                }}
                 onContextMenu={e => {
                     ContextMenuApi.openContextMenu(e, () => (
                         <Menu.Menu
@@ -133,10 +157,16 @@ export default definePlugin({
                             aria-label="Pin DMs Category Menu"
                         >
                             <Menu.MenuItem
+                                id="vc-pindms-edit-category"
+                                label="Edit Category"
+                                action={() => openCategoryModal(category.id, null, this.forceUpdate.bind(this))}
+                            />
+
+                            <Menu.MenuItem
                                 id="vc-pindms-delete-category"
                                 color="danger"
                                 label="Delete Category"
-                                action={() => data.removeCategory(category.id).then(instance.forceUpdate())}
+                                action={() => data.removeCategory(category.id).then(() => this.forceUpdate())}
                             />
                         </Menu.Menu>
                     ));

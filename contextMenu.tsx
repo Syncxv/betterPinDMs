@@ -7,9 +7,9 @@
 import { addContextMenuPatch, findGroupChildrenByChildId, NavContextMenuPatchCallback, removeContextMenuPatch } from "@api/ContextMenu";
 import { ModalContent, ModalFooter, ModalHeader, ModalProps, ModalRoot, openModal } from "@utils/modal";
 import { extractAndLoadChunksLazy, findComponentByCodeLazy } from "@webpack";
-import { Button, Forms, Menu, TextInput, Toasts, useState } from "@webpack/common";
+import { Button, Forms, Menu, TextInput, Toasts, useEffect, useState } from "@webpack/common";
 
-import { addCategory, addChannelToCategory, categories, Category, isPinned, removeChannelFromCategory } from "./data";
+import { addCategory as createCategory, addChannelToCategory, categories, Category, getCategory, isPinned, removeChannelFromCategory, updateCategory } from "./data";
 
 interface ColorPickerProps {
     color: number | null;
@@ -21,19 +21,48 @@ const ColorPicker = findComponentByCodeLazy<ColorPickerProps>(".BACKGROUND_PRIMA
 
 export const requireSettingsMenu = extractAndLoadChunksLazy(['name:"UserSettings"'], /createPromise:.{0,20}el\("(.+?)"\).{0,50}"UserSettings"/);
 
-function NewCategoryModal({ modalProps, initalChannelId, forceUpdate }: { modalProps: ModalProps; initalChannelId: string; forceUpdate: () => void; }) {
-    const [category, setCategory] = useState<Category>({
-        id: Toasts.genId(),
-        name: `Pin Category ${categories.length + 1}`,
-        color: 0,
-        channels: [initalChannelId]
-    });
+interface Props {
+    categoryId: string | null;
+    initalChannelId: string | null;
+    modalProps: ModalProps;
+    forceUpdate: () => void;
+}
 
-    async function onCreate() {
-        await addCategory(category);
+const useCategory = (categoryId: string | null, initalChannelId: string | null) => {
+    const [category, setCategory] = useState<Category | null>(null);
+
+    useEffect(() => {
+        if (categoryId)
+            setCategory(getCategory(categoryId)!);
+        else if (initalChannelId)
+            setCategory({
+                id: Toasts.genId(),
+                name: `Pin Category ${categories.length + 1}`,
+                color: 0,
+                channels: [initalChannelId]
+            });
+    }, []);
+
+    return {
+        category,
+        setCategory
+    };
+};
+
+export function NewCategoryModal({ categoryId, modalProps, initalChannelId, forceUpdate }: Props) {
+    const { category, setCategory } = useCategory(categoryId, initalChannelId);
+
+    if (!category) return null;
+
+    const onClick = async () => {
+        if (!categoryId)
+            await createCategory(category);
+        else
+            await updateCategory(category);
+
         forceUpdate();
         modalProps.onClose();
-    }
+    };
 
     return (
         <ModalRoot {...modalProps}>
@@ -57,11 +86,14 @@ function NewCategoryModal({ modalProps, initalChannelId, forceUpdate }: { modalP
             </ModalContent>
 
             <ModalFooter>
-                <Button onClick={onCreate} disabled={!category.name}>Create</Button>
+                <Button onClick={onClick} disabled={!category.name}>{categoryId ? "Edit" : "Create"}</Button>
             </ModalFooter>
         </ModalRoot>
     );
 }
+
+export const openCategoryModal = (categoryId: string | null, channelId: string | null, forceUpdate: () => void) =>
+    openModal(modalProps => <NewCategoryModal categoryId={categoryId} modalProps={modalProps} initalChannelId={channelId} forceUpdate={forceUpdate} />);
 
 function PinMenuItem(channelId: string, forceUpdate: () => void) {
     const pinned = isPinned(channelId);
@@ -78,7 +110,7 @@ function PinMenuItem(channelId: string, forceUpdate: () => void) {
                         id="add-category"
                         label="Add Category"
                         color="brand"
-                        action={() => openModal(modalProps => <NewCategoryModal modalProps={modalProps} initalChannelId={channelId} forceUpdate={forceUpdate} />)}
+                        action={() => openCategoryModal(null, channelId, forceUpdate)}
                     />
                     <Menu.MenuSeparator />
 

@@ -24,8 +24,20 @@ export async function getCategories() {
     return categories;
 }
 
+export function getCategory(id: string) {
+    return categories.find(c => c.id === id);
+}
+
 export async function addCategory(category: Category) {
     categories.push(category);
+    await DataStore.set(CATEGORY_ID, categories);
+}
+
+export async function updateCategory(category: Category) {
+    const index = categories.findIndex(c => c.id === category.id);
+    if (index === -1) return;
+
+    categories[index] = category;
     await DataStore.set(CATEGORY_ID, categories);
 }
 
