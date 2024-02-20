@@ -4,8 +4,13 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+import "./styles.css";
+
 import { Devs } from "@utils/constants";
+import { classes } from "@utils/misc";
 import definePlugin from "@utils/types";
+import { findByPropsLazy } from "@webpack";
+import { ContextMenuApi, FluxDispatcher, Menu, useEffect, useState } from "@webpack/common";
 import { Channel } from "discord-types/general";
 
 import { addContextMenus, removeContextMenus, requireSettingsMenu } from "./contextMenu";
@@ -13,6 +18,9 @@ import { categories, getCategories } from "./data";
 import * as data from "./data";
 
 getCategories();
+
+const headerClasses = findByPropsLazy("privateChannelsHeaderContainer");
+
 export default definePlugin({
     name: "BetterPinDms",
     description: "Pin DMs but with categories",
@@ -24,15 +32,15 @@ export default definePlugin({
             replacement: [
                 {
                     match: /(?<=\w,{channels:\w,)privateChannelIds:(\w)/,
-                    replace: "privateChannelIds:$1.filter(c=>!$self.isPinned(c)),pinCount:$self.usePinCount($1)"
+                    replace: "privateChannelIds:$1.filter(c=>!$self.isPinned(c)),pinCount2:$self.usePinCount($1)"
                 },
                 {
                     match: /(renderRow:this\.renderRow,sections:)(\[\w,.{0,50})Math/,
-                    replace: "$1$self.sections = $2...this.props.pinCount??[],Math"
+                    replace: "$1$self.sections = $2...this.props.pinCount2??[],Math"
                 },
                 {
                     match: /this\.renderSection=(\i)=>{/,
-                    replace: "$&if($self.isCategoryIndex($1.section))return $self.renderCategory($1);"
+                    replace: "$&if($self.isCategoryIndex($1.section))return $self.renderCategory(this,$1);"
                 },
                 // {
                 //     match: /(this\.renderDM=\((\w),(\w)\)=>{.{1,200}this\.state,.{1,200})(\w\[\w\];return)/,
@@ -40,8 +48,8 @@ export default definePlugin({
                 // },
                 {
 
-                    match: /this\.renderDM=\((\w),(\w)\)=>{/,
-                    replace: "$&if($self.isCategoryIndex($1))return $self.renderChannel($1,$2,this.props.channels);"
+                    match: /(this\.renderDM=\((\w),(\w)\)=>{)(.{1,300}return null==\w.{1,20}\((\w\.default),{channel:)/,
+                    replace: "$1if($self.isCategoryIndex($2))return $self.renderChannel(this,$2,$3,this.props.channels,$5);$4"
                 },
                 {
                     match: /(this\.getRowHeight=.{1,100}return 1===)(\w)/,
@@ -54,13 +62,19 @@ export default definePlugin({
     isPinned: data.isPinned,
 
     sections: null as number[] | null,
+    instance: null as any | null,
+    x: 0,
+    forceUpdate() {
+        this.instance?.forceUpdate();
+        this.x++;
+    },
     start() {
-        addContextMenus();
+        addContextMenus(this.forceUpdate.bind(this));
         requireSettingsMenu();
     },
 
     stop() {
-        removeContextMenus();
+        removeContextMenus(this.forceUpdate.bind(this));
     },
 
     getSub() {
@@ -72,7 +86,14 @@ export default definePlugin({
     },
 
     usePinCount(channelIds: string[]) {
-        return channelIds.length ? this.getSections() : [];
+        const [cats, setCats] = useState<number[]>([]);
+        useEffect(() => {
+            if (channelIds.length > 0) {
+                setCats(this.getSections());
+            }
+        }, [this.x, channelIds]);
+
+        return cats;
     },
 
     getSections() {
@@ -93,23 +114,57 @@ export default definePlugin({
         return category?.name;
     },
 
-    renderCategory({ section }: { section: number; }) {
+    renderCategory(instance: any, { section }: { section: number; }) {
+        this.instance = instance;
         const category = categories[section - this.getSub()];
         console.log("renderCat", section, category);
 
+        if (!category) return null;
+
         return (
-            <h1>{category?.name ?? "uh oh"}</h1>
+            <h1
+                className={classes(headerClasses.privateChannelsHeaderContainer, "vc-pindms-section-container")}
+                onContextMenu={e => {
+                    ContextMenuApi.openContextMenu(e, () => (
+                        <Menu.Menu
+                            navId="vc-pindms-header-menu"
+                            onClose={() => FluxDispatcher.dispatch({ type: "CONTEXT_MENU_CLOSE" })}
+                            color="danger"
+                            aria-label="Pin DMs Category Menu"
+                        >
+                            <Menu.MenuItem
+                                id="vc-pindms-delete-category"
+                                color="danger"
+                                label="Delete Category"
+                                action={() => data.removeCategory(category.id).then(instance.forceUpdate())}
+                            />
+                        </Menu.Menu>
+                    ));
+                }}
+            >
+                <span className={headerClasses.headerText}>
+                    {category?.name ?? "uh oh"}
+                </span>
+            </h1>
         );
     },
 
-    renderChannel(sectionIndex: number, index: number, channels: Record<string, Channel>) {
+    // this is crazy
+    renderChannel(instance: any, sectionIndex: number, index: number, channels: Record<string, Channel>, ChannelComponent: React.ComponentType<{ children: React.ReactNode, channel: Channel, selected: boolean; }>) {
         const channel = this.getChannel(sectionIndex, index, channels);
         console.log("renderChannel", sectionIndex, index, channel);
 
+        if (!channel) return null;
+
         return (
-            <div>
-                <h1>{channel.rawRecipients[0].username}</h1>
-            </div>
+            <ChannelComponent
+                channel={channel}
+                selected={instance.props.selectedChannelId === channel.id}
+                aria-posinset={instance.state.preRenderedChildren + index + 1}
+                aria-setsize={instance.state.totalRowCount}
+            >
+                {channel.id}
+            </ChannelComponent>
         );
     },
 

@@ -48,8 +48,12 @@ export async function removeChannelFromCategory(channelId: string) {
     await DataStore.set(CATEGORY_ID, categories);
 }
 
-export async function removeCategory(category: Category) {
-    categories = categories.filter(c => c !== category);
+export async function removeCategory(categoryId: string) {
+    const catagory = categories.find(c => c.id === categoryId);
+    if (!catagory) return;
+
+    catagory?.channels.forEach(c => removeChannelFromCategory(c));
+    categories = categories.filter(c => c.id !== categoryId);
     await DataStore.set(CATEGORY_ID, categories);
 }
 

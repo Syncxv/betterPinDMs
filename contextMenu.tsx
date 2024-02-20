@@ -21,13 +21,19 @@ const ColorPicker = findComponentByCodeLazy<ColorPickerProps>(".BACKGROUND_PRIMA
 
 export const requireSettingsMenu = extractAndLoadChunksLazy(['name:"UserSettings"'], /createPromise:.{0,20}el\("(.+?)"\).{0,50}"UserSettings"/);
 
-function NewCategoryModal({ modalProps, initalChannelId }: { modalProps: ModalProps; initalChannelId: string; }) {
+function NewCategoryModal({ modalProps, initalChannelId, forceUpdate }: { modalProps: ModalProps; initalChannelId: string; forceUpdate: () => void; }) {
     const [category, setCategory] = useState<Category>({
         id: Toasts.genId(),
         name: `Pin Category ${categories.length + 1}`,
         color: 0,
         channels: [initalChannelId]
     });
+
+    async function onCreate() {
+        await addCategory(category);
+        forceUpdate();
+        modalProps.onClose();
+    }
 
     return (
         <ModalRoot {...modalProps}>
@@ -51,13 +57,13 @@ function NewCategoryModal({ modalProps, initalChannelId }: { modalProps: ModalPr
             </ModalContent>
 
             <ModalFooter>
-                <Button onClick={() => addCategory(category)} disabled={!category.name}>Create</Button>
+                <Button onClick={onCreate} disabled={!category.name}>Create</Button>
             </ModalFooter>
         </ModalRoot>
     );
 }
 
-function PinMenuItem(channelId: string) {
+function PinMenuItem(channelId: string, forceUpdate: () => void) {
     const pinned = isPinned(channelId);
 
     return (
@@ -72,7 +78,7 @@ function PinMenuItem(channelId: string) {
                         id="add-category"
                         label="Add Category"
                         color="brand"
-                        action={() => openModal(modalProps => <NewCategoryModal modalProps={modalProps} initalChannelId={channelId} />)}
+                        action={() => openModal(modalProps => <NewCategoryModal modalProps={modalProps} initalChannelId={channelId} forceUpdate={forceUpdate} />)}
                     />
                     <Menu.MenuSeparator />
 
@@ -81,7 +87,7 @@ function PinMenuItem(channelId: string) {
                             <Menu.MenuItem
                                 id={`pin-category-${category.name}`}
                                 label={category.name}
-                                action={() => addChannelToCategory(channelId, category.id)}
+                                action={() => addChannelToCategory(channelId, category.id).then(() => forceUpdate())}
                             />
                         ))
                     }
@@ -93,7 +99,7 @@ function PinMenuItem(channelId: string) {
                     id="unpin-dm"
                     label="Unpin DM"
                     color="danger"
-                    action={() => removeChannelFromCategory(channelId)}
+                    action={() => removeChannelFromCategory(channelId).then(() => forceUpdate())}
                 />
             )}
 
@@ -101,26 +107,26 @@ function PinMenuItem(channelId: string) {
     );
 }
 
-const GroupDMContext: NavContextMenuPatchCallback = (children, props) => () => {
+const GroupDMContext = (forceUpdate: () => void): NavContextMenuPatchCallback => (children, props) => () => {
     const container = findGroupChildrenByChildId("leave-channel", children);
     if (container)
-        container.unshift(PinMenuItem(props.channel.id));
+        container.unshift(PinMenuItem(props.channel.id, forceUpdate));
 };
 
-const UserContext: NavContextMenuPatchCallback = (children, props) => () => {
+const UserContext = (forceUpdate: () => void): NavContextMenuPatchCallback => (children, props) => () => {
     const container = findGroupChildrenByChildId("close-dm", children);
     if (container) {
         const idx = container.findIndex(c => c?.props?.id === "close-dm");
-        container.splice(idx, 0, PinMenuItem(props.channel.id));
+        container.splice(idx, 0, PinMenuItem(props.channel.id, forceUpdate));
     }
 };
 
-export function addContextMenus() {
-    addContextMenuPatch("gdm-context", GroupDMContext);
-    addContextMenuPatch("user-context", UserContext);
+export function addContextMenus(forceUpdate: () => void) {
+    addContextMenuPatch("gdm-context", GroupDMContext(forceUpdate));
+    addContextMenuPatch("user-context", UserContext(forceUpdate));
 }
 
-export function removeContextMenus() {
-    removeContextMenuPatch("gdm-context", GroupDMContext);
-    removeContextMenuPatch("user-context", UserContext);
+export function removeContextMenus(forceUpdate: () => void) {
+    removeContextMenuPatch("gdm-context", GroupDMContext(forceUpdate));
+    removeContextMenuPatch("user-context", UserContext(forceUpdate));
 }
