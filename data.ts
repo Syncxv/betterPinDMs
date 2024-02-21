@@ -74,6 +74,7 @@ export async function removeCategory(categoryId: string) {
 export function isPinned(id: string) {
     return categories.some(c => c.channels.includes(id));
 }
+
 export const canMoveCategoryInDirection = (id: string, direction: -1 | 1) => {
     const a = categories.map(m => m.id).indexOf(id);
     const b = a + direction;

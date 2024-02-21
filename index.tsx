@@ -16,8 +16,7 @@ import { Settings } from "Vencord";
 
 import { addContextMenus, removeContextMenus } from "./components/contextMenu";
 import { openCategoryModal, requireSettingsMenu } from "./components/CreateCategoryModal";
-import { categories } from "./data";
-import * as data from "./data";
+import { canMoveCategory, canMoveCategoryInDirection, categories, isPinned, moveCategory, removeCategory } from "./data";
 
 const headerClasses = findByPropsLazy("privateChannelsHeaderContainer");
 
@@ -93,8 +92,7 @@ export default definePlugin({
             }
         },
     ],
-    data,
-    isPinned: data.isPinned,
+    isPinned,
 
     sections: null as number[] | null,
     instance: null as any | null,
@@ -203,31 +201,33 @@ export default definePlugin({
                                 id="vc-pindms-delete-category"
                                 color="danger"
                                 label="Delete Category"
-                                action={() => data.removeCategory(category.id).then(() => this.forceUpdate())}
+                                action={() => removeCategory(category.id).then(() => this.forceUpdate())}
                             />
 
-                            <Menu.MenuSeparator />
                             {
-                                data.canMoveCategory(category.id) && (
-                                    <Menu.MenuItem
-                                        id="vc-pindms-move-category"
-                                        label="Move Category"
-                                    >
-                                        {
-                                            data.canMoveCategoryInDirection(category.id, -1) && <Menu.MenuItem
-                                                id="vc-pindms-move-category-up"
-                                                label="Move Up"
-                                                action={() => data.moveCategory(category.id, -1).then(() => this.forceUpdate())}
-                                            />
-                                        }
-                                        {
-                                            data.canMoveCategoryInDirection(category.id, 1) && <Menu.MenuItem
-                                                id="vc-pindms-move-category-down"
-                                                label="Move Down"
-                                                action={() => data.moveCategory(category.id, 1).then(() => this.forceUpdate())}
-                                            />
-                                        }
-                                    </Menu.MenuItem>
+                                canMoveCategory(category.id) && (
+                                    <>
+                                        <Menu.MenuSeparator />
+                                        <Menu.MenuItem
+                                            id="vc-pindms-move-category"
+                                            label="Move Category"
+                                        >
+                                            {
+                                                canMoveCategoryInDirection(category.id, -1) && <Menu.MenuItem
+                                                    id="vc-pindms-move-category-up"
+                                                    label="Move Up"
+                                                    action={() => moveCategory(category.id, -1).then(() => this.forceUpdate())}
+                                                />
+                                            }
+                                            {
+                                                canMoveCategoryInDirection(category.id, 1) && <Menu.MenuItem
+                                                    id="vc-pindms-move-category-down"
+                                                    label="Move Down"
+                                                    action={() => moveCategory(category.id, 1).then(() => this.forceUpdate())}
+                                                />
+                                            }
+                                        </Menu.MenuItem>
+                                    </>
 
                                 )
                             }
