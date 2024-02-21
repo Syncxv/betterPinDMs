@@ -7,8 +7,7 @@
 import { classNameFactory } from "@api/Styles";
 import { ModalContent, ModalFooter, ModalHeader, ModalProps, ModalRoot, openModal } from "@utils/modal";
 import { extractAndLoadChunksLazy, findComponentByCodeLazy } from "@webpack";
-import { Button, Forms, Text, TextInput, Toasts } from "@webpack/common";
-import { useEffect, useState } from "react";
+import { Button, Forms, Text, TextInput, Toasts, useEffect, useState } from "@webpack/common";
 
 import { categories, Category, createCategory, getCategory, updateCategory } from "../data";
 
