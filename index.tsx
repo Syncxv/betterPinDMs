@@ -59,6 +59,16 @@ export default definePlugin({
                     replace: "$1($2-$self.categoryLen())"
                 }
             ]
+        },
+
+        // forceUpdate moment
+        // https://regex101.com/r/kDN9fO/1
+        {
+            find: ".FRIENDS},\"friends\"",
+            replacement: {
+                match: /(\i=\i=>{)(.{1,850})showDMHeader:/,
+                replace: "$1let forceUpdate = Vencord.Util.useForceUpdater();$2_forceUpdate:forceUpdate,showDMHeader:"
+            }
         }
     ],
     data,
@@ -66,10 +76,8 @@ export default definePlugin({
 
     sections: null as number[] | null,
     instance: null as any | null,
-    x: 0,
-    forceUpdate(instance?: any) {
-        (instance ?? this.instance)?.forceUpdate();
-        this.x++;
+    forceUpdate() {
+        this.instance?.props?._forceUpdate?.();
     },
     start() {
         if (Settings.plugins.PinDMs?.enabled) {
@@ -117,7 +125,7 @@ export default definePlugin({
             forceUpdate();
         }, [this.x, channelIds]);
 
-        return cats;
+        return channelIds.length ? this.getSections() : [];
     },
 
     getSections() {
@@ -162,7 +170,7 @@ export default definePlugin({
                             <Menu.MenuItem
                                 id="vc-pindms-edit-category"
                                 label="Edit Category"
-                                action={() => openCategoryModal(category.id, null, () => this.forceUpdate(instance))}
+                                action={() => openCategoryModal(category.id, null, () => this.forceUpdate())}
                             />
 
                             <Menu.MenuItem

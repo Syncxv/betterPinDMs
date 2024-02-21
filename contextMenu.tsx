@@ -82,7 +82,7 @@ export function NewCategoryModal({ categoryId, modalProps, initalChannelId, forc
     return (
         <ModalRoot {...modalProps}>
             <ModalHeader>
-                <Text variant="heading-lg/semibold" style={{ flexGrow: 1 }}>New Category</Text>
+                <Text variant="heading-lg/semibold" style={{ flexGrow: 1 }}>{categoryId ? "Edit" : "New"} Category</Text>
             </ModalHeader>
 
             <ModalContent className={cl("content")}>
