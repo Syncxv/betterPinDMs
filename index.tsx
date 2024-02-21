@@ -8,7 +8,6 @@ import "./styles.css";
 
 import { Devs } from "@utils/constants";
 import { classes } from "@utils/misc";
-import { useForceUpdater } from "@utils/react";
 import definePlugin from "@utils/types";
 import { findByPropsLazy } from "@webpack";
 import { Alerts, Button, ContextMenuApi, FluxDispatcher, Menu, React, useState } from "@webpack/common";
@@ -23,7 +22,7 @@ import * as data from "./data";
 const headerClasses = findByPropsLazy("privateChannelsHeaderContainer");
 
 export default definePlugin({
-    name: "BetterPinDms",
+    name: "BetterPinDMs",
     description: "Pin DMs but with categories",
     authors: [Devs.Aria],
 
@@ -64,11 +63,35 @@ export default definePlugin({
         // https://regex101.com/r/kDN9fO/1
         {
             find: ".FRIENDS},\"friends\"",
+            predicate: () => !Settings.plugins.PinDMs?.enabled,
             replacement: {
                 match: /(\i=\i=>{)(.{1,850})showDMHeader:/,
                 replace: "$1let forceUpdate = Vencord.Util.useForceUpdater();$2_forceUpdate:forceUpdate,showDMHeader:"
             }
-        }
+        },
+
+        // copied from PinDMs
+        // Fix Alt Up/Down navigation
+        {
+            find: ".Routes.APPLICATION_STORE&&",
+            predicate: () => !Settings.plugins.PinDMs?.enabled,
+            replacement: {
+                // channelIds = __OVERLAY__ ? stuff : [...getStaticPaths(),...channelIds)]
+                match: /(?<=\i=__OVERLAY__\?\i:\[\.\.\.\i\(\),\.\.\.)\i/,
+                // ....concat(pins).concat(toArray(channelIds).filter(c => !isPinned(c)))
+                replace: "$self.getAllChannels().concat($&.filter(c=>!$self.isPinned(c)))"
+            }
+        },
+
+        // copied from PinDMs
+        // fix alt+shift+up/down
+        {
+            find: ".getFlattenedGuildIds()],",
+            replacement: {
+                match: /(?<=\i===\i\.ME\?)\i\.\i\.getPrivateChannelIds\(\)/,
+                replace: "$self.getAllChannels().concat($&.filter(c=>!$self.isPinned(c)))"
+            }
+        },
     ],
     data,
     isPinned: data.isPinned,
@@ -114,17 +137,19 @@ export default definePlugin({
         return categories.length;
     },
 
+    getAllChannels() {
+        return categories.map(c => c.channels).flat();
+    },
+
     usePinCount(channelIds: string[]) {
         const [cats, setCats] = useState<number[]>([]);
-        const forceUpdate = useForceUpdater();
         React.useLayoutEffect(() => {
             if (channelIds.length > 0) {
                 setCats(this.getSections());
             }
-            forceUpdate();
         }, [this.x, channelIds]);
 
-        return channelIds.length ? this.getSections() : [];
+        return cats;
     },
 
     getSections() {
@@ -148,7 +173,7 @@ export default definePlugin({
     renderCategory(instance: any, { section }: { section: number; }) {
         this.instance = instance;
         const category = categories[section - this.getSub()];
-        console.log("renderCat", section, category);
+        // console.log("renderCat", section, category);
 
         if (!category) return null;
 
@@ -223,7 +248,7 @@ export default definePlugin({
     // this is crazy
     renderChannel(instance: any, sectionIndex: number, index: number, channels: Record<string, Channel>, ChannelComponent: React.ComponentType<{ children: React.ReactNode, channel: Channel, selected: boolean; }>) {
         const { channel, category } = this.getChannel(sectionIndex, index, channels);
-        console.log("renderChannel", sectionIndex, index, channel);
+        // console.log("renderChannel", sectionIndex, index, channel);
 
         if (!channel || !category) return null;
         const selected = instance.props.selectedChannelId === channel.id;
@@ -246,7 +271,7 @@ export default definePlugin({
         const category = categories[sectionIndex - this.getSub()];
         const channelId = category?.channels[index];
 
-        console.log("getChannel", sectionIndex, index, channelId);
+        // console.log("getChannel", sectionIndex, index, channelId);
 
         return { channel: channels[channelId], category };
     }
