@@ -15,7 +15,8 @@ import { Alerts, Button, ContextMenuApi, FluxDispatcher, Menu, React, useState }
 import { Channel } from "discord-types/general";
 import { Settings } from "Vencord";
 
-import { addContextMenus, openCategoryModal, removeContextMenus, requireSettingsMenu } from "./contextMenu";
+import { addContextMenus, removeContextMenus } from "./components/contextMenu";
+import { openCategoryModal, requireSettingsMenu } from "./components/CreateCategoryModal";
 import { categories } from "./data";
 import * as data from "./data";
 
@@ -128,7 +129,7 @@ export default definePlugin({
 
     getSections() {
         return categories.reduce((acc, category) => {
-            acc.push(category.channels.length);
+            acc.push(category.channels.length === 0 ? 1 : category.channels.length);
             return acc;
         }, [] as number[]);
     },
@@ -152,7 +153,7 @@ export default definePlugin({
         if (!category) return null;
 
         return (
-            <h1
+            <h2
                 className={classes(headerClasses.privateChannelsHeaderContainer, "vc-pindms-section-container", category.colapsed ? "vc-pindms-colapsed" : "")}
                 style={{ color: `#${category.color.toString(16).padStart(6, "0")}` }}
                 onClick={() => {
@@ -189,7 +190,7 @@ export default definePlugin({
                 <svg className="vc-pindms-colapse-icon" aria-hidden="true" role="img" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
                     <path fill="currentColor" d="M9.3 5.3a1 1 0 0 0 0 1.4l5.29 5.3-5.3 5.3a1 1 0 1 0 1.42 1.4l6-6a1 1 0 0 0 0-1.4l-6-6a1 1 0 0 0-1.42 0Z"></path>
                 </svg>
-            </h1>
+            </h2>
         );
     },
 

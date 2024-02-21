@@ -4,13 +4,13 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-import { addContextMenuPatch, findGroupChildrenByChildId, NavContextMenuPatchCallback, removeContextMenuPatch } from "@api/ContextMenu";
 import { classNameFactory } from "@api/Styles";
 import { ModalContent, ModalFooter, ModalHeader, ModalProps, ModalRoot, openModal } from "@utils/modal";
 import { extractAndLoadChunksLazy, findComponentByCodeLazy } from "@webpack";
-import { Button, Forms, Menu, Text, TextInput, Toasts, useEffect, useState } from "@webpack/common";
+import { Button, Forms, Text, TextInput, Toasts } from "@webpack/common";
+import { useEffect, useState } from "react";
 
-import { addCategory as createCategory, addChannelToCategory, categories, Category, getCategory, isPinned, removeChannelFromCategory, updateCategory } from "./data";
+import { categories, Category, createCategory, getCategory, updateCategory } from "../data";
 
 interface ColorPickerProps {
     color: number | null;
@@ -128,70 +128,3 @@ export function NewCategoryModal({ categoryId, modalProps, initalChannelId, forc
 export const openCategoryModal = (categoryId: string | null, channelId: string | null, forceUpdate: () => void) =>
     openModal(modalProps => <NewCategoryModal categoryId={categoryId} modalProps={modalProps} initalChannelId={channelId} forceUpdate={forceUpdate} />);
 
-function PinMenuItem(channelId: string, forceUpdate: () => void) {
-    const pinned = isPinned(channelId);
-
-    return (
-        <Menu.MenuItem
-            id="better-pin-dm"
-            label="Pin DMs"
-        >
-
-            {!pinned && (
-                <>
-                    <Menu.MenuItem
-                        id="add-category"
-                        label="Add Category"
-                        color="brand"
-                        action={() => openCategoryModal(null, channelId, forceUpdate)}
-                    />
-                    <Menu.MenuSeparator />
-
-                    {
-                        categories.map(category => (
-                            <Menu.MenuItem
-                                id={`pin-category-${category.name}`}
-                                label={category.name}
-                                action={() => addChannelToCategory(channelId, category.id).then(() => forceUpdate())}
-                            />
-                        ))
-                    }
-                </>
-            )}
-
-            {pinned && (
-                <Menu.MenuItem
-                    id="unpin-dm"
-                    label="Unpin DM"
-                    color="danger"
-                    action={() => removeChannelFromCategory(channelId).then(() => forceUpdate())}
-                />
-            )}
-
-        </Menu.MenuItem>
-    );
-}
-
-const GroupDMContext = (forceUpdate: () => void): NavContextMenuPatchCallback => (children, props) => () => {
-    const container = findGroupChildrenByChildId("leave-channel", children);
-    if (container)
-        container.unshift(PinMenuItem(props.channel.id, forceUpdate));
-};
-
-const UserContext = (forceUpdate: () => void): NavContextMenuPatchCallback => (children, props) => () => {
-    const container = findGroupChildrenByChildId("close-dm", children);
-    if (container) {
-        const idx = container.findIndex(c => c?.props?.id === "close-dm");
-        container.splice(idx, 0, PinMenuItem(props.channel.id, forceUpdate));
-    }
-};
-
-export function addContextMenus(forceUpdate: () => void) {
-    addContextMenuPatch("gdm-context", GroupDMContext(forceUpdate));
-    addContextMenuPatch("user-context", UserContext(forceUpdate));
-}
-
-export function removeContextMenus(forceUpdate: () => void) {
-    removeContextMenuPatch("gdm-context", GroupDMContext(forceUpdate));
-    removeContextMenuPatch("user-context", UserContext(forceUpdate));
-}

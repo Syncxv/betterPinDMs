@@ -30,7 +30,7 @@ export function getCategory(id: string) {
     return categories.find(c => c.id === id);
 }
 
-export async function addCategory(category: Category) {
+export async function createCategory(category: Category) {
     categories.push(category);
     await DataStore.set(CATEGORY_ID, categories);
 }
