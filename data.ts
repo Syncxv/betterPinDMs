@@ -23,6 +23,7 @@ export async function getCategories() {
     }
     return categories;
 }
+getCategories();
 
 export function getCategory(id: string) {
     return categories.find(c => c.id === id);

@@ -16,10 +16,8 @@ import { Channel } from "discord-types/general";
 import { Settings } from "Vencord";
 
 import { addContextMenus, openCategoryModal, removeContextMenus, requireSettingsMenu } from "./contextMenu";
-import { categories, getCategories } from "./data";
+import { categories } from "./data";
 import * as data from "./data";
-
-getCategories();
 
 const headerClasses = findByPropsLazy("privateChannelsHeaderContainer");
 
