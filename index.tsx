@@ -24,7 +24,7 @@ const headerClasses = findByPropsLazy("privateChannelsHeaderContainer");
 export default definePlugin({
     name: "BetterPinDMs",
     description: "Pin DMs but with categories",
-    authors: [Devs.Aria],
+    authors: [Devs.Aria, Devs.Ven, Devs.Strencher],
 
     patches: [
         {
@@ -158,13 +158,6 @@ export default definePlugin({
 
     isCategoryIndex(sectionIndex: number) {
         return this.sections && sectionIndex > (this.getSub() - 1) && sectionIndex < this.sections.length - 1;
-    },
-
-    getName(sectionIndex: number) {
-        if (!this.isCategoryIndex(sectionIndex)) return;
-
-        const category = categories[sectionIndex - this.getSub()];
-        return category?.name;
     },
 
     renderCategory({ section }: { section: number; }) {
