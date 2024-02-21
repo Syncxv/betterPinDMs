@@ -180,6 +180,32 @@ export default definePlugin({
                                 label="Delete Category"
                                 action={() => data.removeCategory(category.id).then(() => this.forceUpdate())}
                             />
+
+                            <Menu.MenuSeparator />
+                            {
+                                data.canMoveCategory(category.id) && (
+                                    <Menu.MenuItem
+                                        id="vc-pindms-move-category"
+                                        label="Move Category"
+                                    >
+                                        {
+                                            data.canMoveCategoryInDirection(category.id, -1) && <Menu.MenuItem
+                                                id="vc-pindms-move-category-up"
+                                                label="Move Up"
+                                                action={() => data.moveCategory(category.id, -1).then(() => this.forceUpdate())}
+                                            />
+                                        }
+                                        {
+                                            data.canMoveCategoryInDirection(category.id, 1) && <Menu.MenuItem
+                                                id="vc-pindms-move-category-down"
+                                                label="Move Down"
+                                                action={() => data.moveCategory(category.id, 1).then(() => this.forceUpdate())}
+                                            />
+                                        }
+                                    </Menu.MenuItem>
+
+                                )
+                            }
                         </Menu.Menu>
                     ));
                 }}

@@ -74,3 +74,24 @@ export async function removeCategory(categoryId: string) {
 export function isPinned(id: string) {
     return categories.some(c => c.channels.includes(id));
 }
+export const canMoveCategoryInDirection = (id: string, direction: -1 | 1) => {
+    const a = categories.map(m => m.id).indexOf(id);
+    const b = a + direction;
+
+    return categories[a] && categories[b];
+};
+
+export const canMoveCategory = (id: string) => canMoveCategoryInDirection(id, -1) || canMoveCategoryInDirection(id, 1);
+
+// stolen from PinDMs
+export async function moveCategory(id: string, direction: -1 | 1) {
+    const a = categories.map(m => m.id).indexOf(id);
+    const b = a + direction;
+
+    if (!categories[a] || !categories[b]) return;
+
+    [categories[a], categories[b]] = [categories[b], categories[a]];
+
+    await DataStore.set(CATEGORY_ID, categories);
+}
+
