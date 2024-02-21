@@ -11,6 +11,7 @@ export interface Category {
     name: string;
     color: number;
     channels: string[];
+    colapsed?: boolean;
 }
 
 const CATEGORY_ID = "betterPinDmsCategories";

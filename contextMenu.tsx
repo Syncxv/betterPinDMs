@@ -54,6 +54,7 @@ const useCategory = (categoryId: string | null, initalChannelId: string | null) 
                 id: Toasts.genId(),
                 name: `Pin Category ${categories.length + 1}`,
                 color: 10070709,
+                colapsed: false,
                 channels: [initalChannelId]
             });
     }, []);

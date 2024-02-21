@@ -153,9 +153,11 @@ export default definePlugin({
 
         return (
             <h1
-                className={classes(headerClasses.privateChannelsHeaderContainer, "vc-pindms-section-container")}
-                style={{
-                    color: `#${category.color.toString(16).padStart(6, "0")}`
+                className={classes(headerClasses.privateChannelsHeaderContainer, "vc-pindms-section-container", category.colapsed ? "vc-pindms-colapsed" : "")}
+                style={{ color: `#${category.color.toString(16).padStart(6, "0")}` }}
+                onClick={() => {
+                    category.colapsed = !category.colapsed;
+                    this.forceUpdate();
                 }}
                 onContextMenu={e => {
                     ContextMenuApi.openContextMenu(e, () => (
@@ -184,21 +186,27 @@ export default definePlugin({
                 <span className={headerClasses.headerText}>
                     {category?.name ?? "uh oh"}
                 </span>
+                <svg className="vc-pindms-colapse-icon" aria-hidden="true" role="img" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
+                    <path fill="currentColor" d="M9.3 5.3a1 1 0 0 0 0 1.4l5.29 5.3-5.3 5.3a1 1 0 1 0 1.42 1.4l6-6a1 1 0 0 0 0-1.4l-6-6a1 1 0 0 0-1.42 0Z"></path>
+                </svg>
             </h1>
         );
     },
 
     // this is crazy
     renderChannel(instance: any, sectionIndex: number, index: number, channels: Record<string, Channel>, ChannelComponent: React.ComponentType<{ children: React.ReactNode, channel: Channel, selected: boolean; }>) {
-        const channel = this.getChannel(sectionIndex, index, channels);
+        const { channel, category } = this.getChannel(sectionIndex, index, channels);
         console.log("renderChannel", sectionIndex, index, channel);
 
-        if (!channel) return null;
+        if (!channel || !category) return null;
+        const selected = instance.props.selectedChannelId === channel.id;
+
+        if (!selected && category.colapsed) return null;
 
         return (
             <ChannelComponent
                 channel={channel}
-                selected={instance.props.selectedChannelId === channel.id}
+                selected={selected}
                 aria-posinset={instance.state.preRenderedChildren + index + 1}
                 aria-setsize={instance.state.totalRowCount}
             >
@@ -213,7 +221,7 @@ export default definePlugin({
 
         console.log("getChannel", sectionIndex, index, channelId);
 
-        return channels[channelId];
+        return { channel: channels[channelId], category };
     }
 });
 

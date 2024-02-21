@@ -11,6 +11,7 @@
     font-weight: 600;
     flex: 1 1 auto;
     color: var(--channels-default);
+    cursor: pointer;
 }
 
 .vc-pindms-modal-content {
@@ -22,4 +23,15 @@
 
 .vc-pindms-modal-content [class^="defaultContainer"] {
     display: none;
+}
+
+.vc-pindms-colapse-icon {
+    width: 16px;
+    height: 16px;
+    color: var(--interactive-normal);
+    transform: rotate(90deg)
+}
+
+.vc-pindms-colapsed .vc-pindms-colapse-icon {
+    transform: rotate(0deg);
 }
