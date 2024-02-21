@@ -10,13 +10,14 @@ import { Devs } from "@utils/constants";
 import { classes } from "@utils/misc";
 import definePlugin from "@utils/types";
 import { findByPropsLazy } from "@webpack";
-import { Alerts, Button, ContextMenuApi, FluxDispatcher, Menu, React, useState } from "@webpack/common";
+import { Alerts, Button, ContextMenuApi, FluxDispatcher, Menu, React } from "@webpack/common";
 import { Channel } from "discord-types/general";
 import { Settings } from "Vencord";
 
 import { addContextMenus, removeContextMenus } from "./components/contextMenu";
 import { openCategoryModal, requireSettingsMenu } from "./components/CreateCategoryModal";
 import { canMoveCategory, canMoveCategoryInDirection, categories, isPinned, moveCategory, removeCategory } from "./data";
+// import * as data from "./data";
 
 const headerClasses = findByPropsLazy("privateChannelsHeaderContainer");
 
@@ -40,7 +41,7 @@ export default definePlugin({
                 },
                 {
                     match: /this\.renderSection=(\i)=>{/,
-                    replace: "$&if($self.isCategoryIndex($1.section))return $self.renderCategory(this,$1);"
+                    replace: "$&if($self.isCategoryIndex($1.section))return $self.renderCategory($1);"
                 },
                 // {
                 //     match: /(this\.renderDM=\((\i),(\i)\)=>{.{1,200}this\.state,.{1,200})(\i\[\i\];return)/,
@@ -54,6 +55,10 @@ export default definePlugin({
                 {
                     match: /(this\.getRowHeight=.{1,100}return 1===)(\i)/,
                     replace: "$1($2-$self.categoryLen())"
+                },
+                {
+                    match: /componentDidMount\(\){/,
+                    replace: "$&$self.instance = this;"
                 }
             ]
         },
@@ -92,6 +97,7 @@ export default definePlugin({
             }
         },
     ],
+    // data,
     isPinned,
 
     sections: null as number[] | null,
@@ -140,14 +146,7 @@ export default definePlugin({
     },
 
     usePinCount(channelIds: string[]) {
-        const [cats, setCats] = useState<number[]>([]);
-        React.useLayoutEffect(() => {
-            if (channelIds.length > 0) {
-                setCats(this.getSections());
-            }
-        }, [this.x, channelIds]);
-
-        return cats;
+        return channelIds.length ? this.getSections() : [];
     },
 
     getSections() {
@@ -168,8 +167,7 @@ export default definePlugin({
         return category?.name;
     },
 
-    renderCategory(instance: any, { section }: { section: number; }) {
-        this.instance = instance;
+    renderCategory({ section }: { section: number; }) {
         const category = categories[section - this.getSub()];
         // console.log("renderCat", section, category);
 
