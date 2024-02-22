@@ -63,6 +63,15 @@ export default definePlugin({
                 {
                     match: /componentDidMount\(\){/,
                     replace: "$&$self.instance = this;"
+                },
+                {
+                    match: /this.getRowHeight=\((\i),(\i)\)=>{/,
+                    replace: "$&if($self.isChannelHidden($1,$2))return 0;"
+                },
+
+                {
+                    match: /this.getSectionHeight=(\i)=>{/,
+                    replace: "$&if($self.isCategoryIndex($1))return 40;"
                 }
             ]
         },
@@ -168,6 +177,14 @@ export default definePlugin({
         return this.sections && this.isCategoryIndex(sectionIndex) && categories[sectionIndex - this.getSub()]?.channels[channelIndex];
     },
 
+    isChannelHidden(categoryIndex: number, channelIndex: number) {
+        if (!this.instance || !this.isChannelIndex(categoryIndex, channelIndex)) return false;
+        const category = categories[categoryIndex - 1];
+        if (!category) return false;
+
+        return category.colapsed && this.instance.props.selectedChannelId !== category.channels[channelIndex];
+    },
+
     renderCategory({ section }: { section: number; }) {
         const category = categories[section - this.getSub()];
         // console.log("renderCat", section, category);
@@ -237,6 +254,9 @@ export default definePlugin({
                 <span className={headerClasses.headerText}>
                     {category?.name ?? "uh oh"}
                 </span>
+                {/* <span className="vc-pindms-channel-count">
+                    {category.channels.length}
+                </span> */}
                 <svg className="vc-pindms-colapse-icon" aria-hidden="true" role="img" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
                     <path fill="currentColor" d="M9.3 5.3a1 1 0 0 0 0 1.4l5.29 5.3-5.3 5.3a1 1 0 1 0 1.42 1.4l6-6a1 1 0 0 0 0-1.4l-6-6a1 1 0 0 0-1.42 0Z"></path>
                 </svg>
