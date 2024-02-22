@@ -9,17 +9,33 @@ import "./styles.css";
 import { Devs } from "@utils/constants";
 import { classes } from "@utils/misc";
 import definePlugin from "@utils/types";
-import { findByPropsLazy } from "@webpack";
-import { Alerts, Button, ContextMenuApi, FluxDispatcher, Menu, React } from "@webpack/common";
+import { findByPropsLazy, waitFor } from "@webpack";
+import { Alerts, Button, ContextMenuApi, FluxDispatcher, Menu, React, UserStore } from "@webpack/common";
 import { Channel } from "discord-types/general";
 import { Settings } from "Vencord";
 
 import { addContextMenus, removeContextMenus } from "./components/contextMenu";
 import { openCategoryModal, requireSettingsMenu } from "./components/CreateCategoryModal";
-import { canMoveCategory, canMoveCategoryInDirection, categories, isPinned, moveCategory, removeCategory } from "./data";
+import { canMoveCategory, canMoveCategoryInDirection, categories, initCategories, isPinned, migrateData, moveCategory, removeCategory } from "./data";
 import * as data from "./data";
 
 const headerClasses = findByPropsLazy("privateChannelsHeaderContainer");
+
+export let instance: any;
+export const forceUpdate = () => instance?.props?._forceUpdate?.();
+
+// the flux property in definePlugin doenst fire, probably because startAt isnt Init
+waitFor(["dispatch", "subscribe"], m => {
+    m.subscribe("CONNECTION_OPEN", async () => {
+        const id = UserStore.getCurrentUser()?.id;
+        await initCategories(id);
+        await migrateData();
+        forceUpdate();
+        // dont want to unsubscribe because if they switch accounts we want to reinit
+    });
+});
+
+
 
 export default definePlugin({
     name: "BetterPinDMs",
@@ -62,7 +78,7 @@ export default definePlugin({
                 },
                 {
                     match: /componentDidMount\(\){/,
-                    replace: "$&$self.instance = this;"
+                    replace: "$&$self._instance = this;"
                 },
                 {
                     match: /this.getRowHeight=\((\i),(\i)\)=>{/,
@@ -111,13 +127,18 @@ export default definePlugin({
         },
     ],
     data,
-    isPinned,
-
     sections: null as number[] | null,
-    instance: null as any | null,
+
+    set _instance(i: any) {
+        this.instance = i;
+        instance = i;
+    },
+
+    isPinned,
     forceUpdate() {
         this.instance?.props?._forceUpdate?.();
     },
+
     start() {
         if (Settings.plugins.PinDMs?.enabled) {
             console.log("disable PinDMs to use this plugin");
@@ -138,12 +159,12 @@ export default definePlugin({
             return;
         }
 
-        addContextMenus(this.forceUpdate.bind(this));
+        addContextMenus();
         requireSettingsMenu();
     },
 
     stop() {
-        removeContextMenus(this.forceUpdate.bind(this));
+        removeContextMenus();
     },
 
     getSub() {
@@ -195,8 +216,8 @@ export default definePlugin({
             <h2
                 className={classes(headerClasses.privateChannelsHeaderContainer, "vc-pindms-section-container", category.colapsed ? "vc-pindms-colapsed" : "")}
                 style={{ color: `#${category.color.toString(16).padStart(6, "0")}` }}
-                onClick={() => {
-                    category.colapsed = !category.colapsed;
+                onClick={async () => {
+                    await data.collapseCategory(category.id, !category.colapsed);
                     this.forceUpdate();
                 }}
                 onContextMenu={e => {
@@ -210,7 +231,7 @@ export default definePlugin({
                             <Menu.MenuItem
                                 id="vc-pindms-edit-category"
                                 label="Edit Category"
-                                action={() => openCategoryModal(category.id, null, () => this.forceUpdate())}
+                                action={() => openCategoryModal(category.id, null)}
                             />
 
                             <Menu.MenuItem
@@ -295,4 +316,3 @@ export default definePlugin({
         return { channel: channels[channelId], category };
     }
 });
-
