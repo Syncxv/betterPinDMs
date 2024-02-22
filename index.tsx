@@ -88,6 +88,12 @@ export default definePlugin({
                 {
                     match: /this.getSectionHeight=(\i)=>{/,
                     replace: "$&if($self.isCategoryIndex($1))return 40;"
+                },
+                {
+                    // Copied from PinDMs
+                    // Override scrollToChannel to properly account for pinned channels
+                    match: /(?<=scrollTo\(\{to:\i\}\):\(\i\+=)(\d+)\*\(.+?(?=,)/,
+                    replace: "$self.getScrollOffset(arguments[0],$1,this.props.padding,this.state.preRenderedChildren,$&)"
                 }
             ]
         },
@@ -204,6 +210,17 @@ export default definePlugin({
         if (!category) return false;
 
         return category.colapsed && this.instance.props.selectedChannelId !== category.channels[channelIndex];
+    },
+
+    getScrollOffset(channelId: string, rowHeight: number, padding: number, preRenderedChildren: number, originalOffset: number) {
+        if (!isPinned(channelId))
+            return (
+                (rowHeight + padding) * 2 // header
+                + rowHeight * this.getAllChannels().length // pins
+                + originalOffset // original pin offset minus pins
+            );
+
+        return rowHeight * (this.getAllChannels().indexOf(channelId) + preRenderedChildren) + padding;
     },
 
     renderCategory({ section }: { section: number; }) {
