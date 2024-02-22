@@ -17,7 +17,7 @@ import { Settings } from "Vencord";
 import { addContextMenus, removeContextMenus } from "./components/contextMenu";
 import { openCategoryModal, requireSettingsMenu } from "./components/CreateCategoryModal";
 import { canMoveCategory, canMoveCategoryInDirection, categories, isPinned, moveCategory, removeCategory } from "./data";
-// import * as data from "./data";
+import * as data from "./data";
 
 const headerClasses = findByPropsLazy("privateChannelsHeaderContainer");
 
@@ -36,8 +36,12 @@ export default definePlugin({
                     replace: "privateChannelIds:$1.filter(c=>!$self.isPinned(c)),pinCount2:$self.usePinCount($1)"
                 },
                 {
-                    match: /(renderRow:this\.renderRow,sections:)(\[\i,)/,
-                    replace: "$1$self.sections = $2...this.props.pinCount2??[],"
+                    match: /(renderRow:this\.renderRow,sections:)(\[\i,)Math.max\((\i)\.length,1\)/,
+                    replace: "$1$self.sections = $2...this.props.pinCount2??[],Math.max($3.length,0)"
+                },
+                {
+                    match: /\(\i,{},"no-private-channels"/,
+                    replace: "(Vencord.Util.NoopComponent,{},\"no-private-channels\""
                 },
                 {
                     match: /this\.renderSection=(\i)=>{/,
@@ -97,7 +101,7 @@ export default definePlugin({
             }
         },
     ],
-    // data,
+    data,
     isPinned,
 
     sections: null as number[] | null,
@@ -158,6 +162,10 @@ export default definePlugin({
 
     isCategoryIndex(sectionIndex: number) {
         return this.sections && sectionIndex > (this.getSub() - 1) && sectionIndex < this.sections.length - 1;
+    },
+
+    isChannelIndex(sectionIndex: number, channelIndex: number) {
+        return this.sections && this.isCategoryIndex(sectionIndex) && categories[sectionIndex - this.getSub()]?.channels[channelIndex];
     },
 
     renderCategory({ section }: { section: number; }) {
