@@ -6,19 +6,24 @@
 
 import "./styles.css";
 
-import { definePluginSettings } from "@api/Settings";
+import { definePluginSettings, Settings } from "@api/Settings";
 import { Devs } from "@utils/constants";
 import { classes } from "@utils/misc";
 import definePlugin, { OptionType } from "@utils/types";
 import { findByPropsLazy, waitFor } from "@webpack";
 import { Alerts, Button, ContextMenuApi, FluxDispatcher, Menu, React, UserStore } from "@webpack/common";
 import { Channel } from "discord-types/general";
-import { Settings } from "Vencord";
 
 import { addContextMenus, removeContextMenus } from "./components/contextMenu";
 import { openCategoryModal, requireSettingsMenu } from "./components/CreateCategoryModal";
 import { canMoveCategory, canMoveCategoryInDirection, categories, initCategories, isPinned, migrateData, moveCategory, removeCategory } from "./data";
 import * as data from "./data";
+
+interface ChannelComponentProps {
+    children: React.ReactNode,
+    channel: Channel,
+    selected: boolean;
+}
 
 const headerClasses = findByPropsLazy("privateChannelsHeaderContainer");
 
@@ -28,6 +33,8 @@ export const forceUpdate = () => instance?.props?._forceUpdate?.();
 // the flux property in definePlugin doenst fire, probably because startAt isnt Init
 waitFor(["dispatch", "subscribe"], m => {
     m.subscribe("CONNECTION_OPEN", async () => {
+        if (!Settings.plugins.BetterPinDMs?.enabled) return;
+
         const id = UserStore.getCurrentUser()?.id;
         await initCategories(id);
         await migrateData();
@@ -59,24 +66,19 @@ export default definePlugin({
             replacement: [
                 {
                     match: /(?<=\i,{channels:\i,)privateChannelIds:(\i)/,
-                    replace: "privateChannelIds:$1.filter(c=>!$self.isPinned(c)),pinCount2:$self.usePinCount($1)"
+                    replace: "privateChannelIds:$1.filter(c=>!$self.isPinned(c))"
                 },
                 {
-                    match: /(?<=renderRow:this\.renderRow,sections:)(\[\i,)Math.max\((\i)\.length,1\)]/,
-                    replace: "$self.sections = $1...this.props.pinCount2??[],Math.max($2.length,0)],chunkSize:$self.getChunkSize()"
+                    match: /(?<=renderRow:this\.renderRow,)sections:\[.+?1\)]/,
+                    replace: "...$self.makeProps(this,{$&})"
                 },
                 {
-                    match: /this\.renderRow=(\i)=>{/,
-                    replace: "$&if($self.isCategoryIndex($1.section))return this.renderDM($1.section, $1.row);"
+                    match: /this\.renderDM=\(.+?(\i\.default),{channel.+?this.renderRow=(\i)=>{/,
+                    replace: "$&if($self.isCategoryIndex($2.section))return $self.renderChannel($2.section,$2.row,$1);"
                 },
                 {
                     match: /this\.renderSection=(\i)=>{/,
                     replace: "$&if($self.isCategoryIndex($1.section))return $self.renderCategory($1);"
-                },
-                {
-
-                    match: /(this\.renderDM=\((\i),(\i)\)=>{)(.{1,300}return null==\i.{1,20}\((\i\.default),{channel:)/,
-                    replace: "$1if($self.isCategoryIndex($2))return $self.renderChannel(this,$2,$3,this.props.channels,$5);$4"
                 },
                 {
                     match: /(this\.getRowHeight=.{1,100}return 1===)(\i)/,
@@ -89,11 +91,6 @@ export default definePlugin({
                 {
                     match: /this.getRowHeight=\((\i),(\i)\)=>{/,
                     replace: "$&if($self.isChannelHidden($1,$2))return 0;"
-                },
-
-                {
-                    match: /this.getSectionHeight=(\i)=>{/,
-                    replace: "$&if($self.isCategoryIndex($1))return 40;"
                 },
                 {
                     // Copied from PinDMs
@@ -108,13 +105,6 @@ export default definePlugin({
             ]
         },
 
-        // {
-        //     find: ")}compute(",
-        //     replacement: {
-        //         match: /compute\((\i),t\){/,
-        //         replace: "$&$1=0;"
-        //     }
-        // },
 
         // forceUpdate moment
         // https://regex101.com/r/kDN9fO/1
@@ -136,7 +126,7 @@ export default definePlugin({
                 // channelIds = __OVERLAY__ ? stuff : [...getStaticPaths(),...channelIds)]
                 match: /(?<=\i=__OVERLAY__\?\i:\[\.\.\.\i\(\),\.\.\.)\i/,
                 // ....concat(pins).concat(toArray(channelIds).filter(c => !isPinned(c)))
-                replace: "$self.getAllChannels().concat($&.filter(c=>!$self.isPinned(c)))"
+                replace: "$self.getAllUncolapsedChannels().concat($&.filter(c=>!$self.isPinned(c)))"
             }
         },
 
@@ -147,7 +137,7 @@ export default definePlugin({
             predicate: () => !Settings.plugins.PinDMs?.enabled,
             replacement: {
                 match: /(?<=\i===\i\.ME\?)\i\.\i\.getPrivateChannelIds\(\)/,
-                replace: "$self.getAllChannels().concat($&.filter(c=>!$self.isPinned(c)))"
+                replace: "$self.getAllUncolapsedChannels().concat($&.filter(c=>!$self.isPinned(c)))"
             }
         },
     ],
@@ -160,9 +150,6 @@ export default definePlugin({
     },
 
     isPinned,
-    forceUpdate() {
-        this.instance?.props?._forceUpdate?.();
-    },
 
     start() {
         if (Settings.plugins.PinDMs?.enabled) {
@@ -190,6 +177,21 @@ export default definePlugin({
 
     stop() {
         removeContextMenus();
+    },
+
+    makeProps(instance, { sections }: { sections: number[]; }) {
+        this.sections = sections;
+
+        this.sections.splice(1, 0, ...this.usePinCount(instance.props.privateChannelIds || []));
+
+        if (this.instance?.props?.privateChannelIds?.length === 0) {
+            this.sections[this.sections.length - 1] = 0;
+        }
+
+        return {
+            sections: this.sections,
+            chunkSize: this.getChunkSize(),
+        };
     },
 
     categoryLen() {
@@ -229,6 +231,7 @@ export default definePlugin({
 
     isChannelHidden(categoryIndex: number, channelIndex: number) {
         if (!this.instance || !this.isChannelIndex(categoryIndex, channelIndex)) return false;
+
         const category = categories[categoryIndex - 1];
         if (!category) return false;
 
@@ -248,7 +251,6 @@ export default definePlugin({
 
     renderCategory({ section }: { section: number; }) {
         const category = categories[section - 1];
-        // console.log("renderCat", section, category);
 
         if (!category) return null;
 
@@ -258,7 +260,7 @@ export default definePlugin({
                 style={{ color: `#${category.color.toString(16).padStart(6, "0")}` }}
                 onClick={async () => {
                     await data.collapseCategory(category.id, !category.colapsed);
-                    this.forceUpdate();
+                    forceUpdate();
                 }}
                 onContextMenu={e => {
                     ContextMenuApi.openContextMenu(e, () => (
@@ -278,7 +280,7 @@ export default definePlugin({
                                 id="vc-pindms-delete-category"
                                 color="danger"
                                 label="Delete Category"
-                                action={() => removeCategory(category.id).then(() => this.forceUpdate())}
+                                action={() => removeCategory(category.id).then(() => forceUpdate())}
                             />
 
                             {
@@ -293,14 +295,14 @@ export default definePlugin({
                                                 canMoveCategoryInDirection(category.id, -1) && <Menu.MenuItem
                                                     id="vc-pindms-move-category-up"
                                                     label="Move Up"
-                                                    action={() => moveCategory(category.id, -1).then(() => this.forceUpdate())}
+                                                    action={() => moveCategory(category.id, -1).then(() => forceUpdate())}
                                                 />
                                             }
                                             {
                                                 canMoveCategoryInDirection(category.id, 1) && <Menu.MenuItem
                                                     id="vc-pindms-move-category-down"
                                                     label="Move Down"
-                                                    action={() => moveCategory(category.id, 1).then(() => this.forceUpdate())}
+                                                    action={() => moveCategory(category.id, 1).then(() => forceUpdate())}
                                                 />
                                             }
                                         </Menu.MenuItem>
@@ -315,9 +317,6 @@ export default definePlugin({
                 <span className={headerClasses.headerText}>
                     {category?.name ?? "uh oh"}
                 </span>
-                {/* <span className="vc-pindms-channel-count">
-                    {category.channels.length}
-                </span> */}
                 <svg className="vc-pindms-colapse-icon" aria-hidden="true" role="img" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
                     <path fill="currentColor" d="M9.3 5.3a1 1 0 0 0 0 1.4l5.29 5.3-5.3 5.3a1 1 0 1 0 1.42 1.4l6-6a1 1 0 0 0 0-1.4l-6-6a1 1 0 0 0-1.42 0Z"></path>
                 </svg>
@@ -325,13 +324,11 @@ export default definePlugin({
         );
     },
 
-    // this is crazy
-    renderChannel(instance: any, sectionIndex: number, index: number, channels: Record<string, Channel>, ChannelComponent: React.ComponentType<{ children: React.ReactNode, channel: Channel, selected: boolean; }>) {
-        const { channel, category } = this.getChannel(sectionIndex, index, channels);
-        // console.log("renderChannel", sectionIndex, index, channel);
+    renderChannel(sectionIndex: number, index: number, ChannelComponent: React.ComponentType<ChannelComponentProps>) {
+        const { channel, category } = this.getChannel(sectionIndex, index, this.instance.props.channels);
 
         if (!channel || !category) return null;
-        const selected = instance.props.selectedChannelId === channel.id;
+        const selected = this.instance.props.selectedChannelId === channel.id;
 
         if (!selected && category.colapsed) return null;
 
@@ -339,8 +336,6 @@ export default definePlugin({
             <ChannelComponent
                 channel={channel}
                 selected={selected}
-                aria-posinset={instance.state.preRenderedChildren + index + 1}
-                aria-setsize={instance.state.totalRowCount}
             >
                 {channel.id}
             </ChannelComponent>
@@ -352,8 +347,6 @@ export default definePlugin({
         if (!category) return { channel: null, category: null };
 
         const channelId = category.channels[index];
-
-        // console.log("getChannel", sectionIndex, index, channelId);
 
         return { channel: channels[channelId], category };
     }

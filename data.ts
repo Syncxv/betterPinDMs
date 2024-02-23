@@ -27,7 +27,7 @@ export const KEYS = {
     OLD_CATEGORY_KEY: "betterPinDmsCategories"
 };
 
-const PrivateChannelSortStore = findStoreLazy("PrivateChannelSortStore");
+const PrivateChannelSortStore = findStoreLazy("PrivateChannelSortStore") as { getPrivateChannelIds: () => string[]; };
 
 export let categories: Category[] = [];
 
