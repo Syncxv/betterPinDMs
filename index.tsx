@@ -56,17 +56,13 @@ export default definePlugin({
                     replace: "$1$self.sections = $2...this.props.pinCount2??[],Math.max($3.length,0)"
                 },
                 {
-                    match: /\(\i,{},"no-private-channels"/,
-                    replace: "(Vencord.Util.NoopComponent,{},\"no-private-channels\""
+                    match: /this\.renderRow=(\i)=>{/,
+                    replace: "$&if($self.isCategoryIndex($1.section))return this.renderDM($1.section, $1.row);"
                 },
                 {
                     match: /this\.renderSection=(\i)=>{/,
                     replace: "$&if($self.isCategoryIndex($1.section))return $self.renderCategory($1);"
                 },
-                // {
-                //     match: /(this\.renderDM=\((\i),(\i)\)=>{.{1,200}this\.state,.{1,200})(\i\[\i\];return)/,
-                //     replace: "$1$self.isCategoryIndex($2)?$self.getChannel($2,$3,this.props.channels):$4"
-                // },
                 {
 
                     match: /(this\.renderDM=\((\i),(\i)\)=>{)(.{1,300}return null==\i.{1,20}\((\i\.default),{channel:)/,
@@ -185,6 +181,10 @@ export default definePlugin({
         return categories.map(c => c.channels).flat();
     },
 
+    getAllUncolapsedChannels() {
+        return categories.filter(c => !c.colapsed).map(c => c.channels).flat();
+    },
+
     usePinCount(channelIds: string[]) {
         return channelIds.length ? this.getSections() : [];
     },
@@ -216,11 +216,11 @@ export default definePlugin({
         if (!isPinned(channelId))
             return (
                 (rowHeight + padding) * 2 // header
-                + rowHeight * this.getAllChannels().length // pins
+                + rowHeight * this.getAllUncolapsedChannels().length // pins
                 + originalOffset // original pin offset minus pins
             );
 
-        return rowHeight * (this.getAllChannels().indexOf(channelId) + preRenderedChildren) + padding;
+        return rowHeight * (this.getAllUncolapsedChannels().indexOf(channelId) + preRenderedChildren) + padding;
     },
 
     renderCategory({ section }: { section: number; }) {
