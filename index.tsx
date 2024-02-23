@@ -6,9 +6,10 @@
 
 import "./styles.css";
 
+import { definePluginSettings } from "@api/Settings";
 import { Devs } from "@utils/constants";
 import { classes } from "@utils/misc";
-import definePlugin from "@utils/types";
+import definePlugin, { OptionType } from "@utils/types";
 import { findByPropsLazy, waitFor } from "@webpack";
 import { Alerts, Button, ContextMenuApi, FluxDispatcher, Menu, React, UserStore } from "@webpack/common";
 import { Channel } from "discord-types/general";
@@ -36,11 +37,20 @@ waitFor(["dispatch", "subscribe"], m => {
 });
 
 
+export const settings = definePluginSettings({
+    sortDmsByNewestMessage: {
+        type: OptionType.BOOLEAN,
+        description: "Sort DMs by newest message",
+        default: false,
+        onChange: () => forceUpdate()
+    }
+});
 
 export default definePlugin({
     name: "BetterPinDMs",
     description: "Pin DMs but with categories",
     authors: [Devs.Aria, Devs.Ven, Devs.Strencher],
+    settings,
 
     patches: [
         {
@@ -90,6 +100,10 @@ export default definePlugin({
                     // Override scrollToChannel to properly account for pinned channels
                     match: /(?<=scrollTo\(\{to:\i\}\):\(\i\+=)(\d+)\*\(.+?(?=,)/,
                     replace: "$self.getScrollOffset(arguments[0],$1,this.props.padding,this.state.preRenderedChildren,$&)"
+                },
+                {
+                    match: /(?<=scrollToChannel\(\i\){.{1,300})this\.props\.privateChannelIds/,
+                    replace: "[...$&,...$self.getAllUncolapsedChannels()]"
                 }
             ]
         },
@@ -169,10 +183,6 @@ export default definePlugin({
         removeContextMenus();
     },
 
-    getSub() {
-        return Vencord.Settings.plugins.PinDMs.enabled ? 2 : 1;
-    },
-
     categoryLen() {
         return categories.length;
     },
@@ -197,11 +207,11 @@ export default definePlugin({
     },
 
     isCategoryIndex(sectionIndex: number) {
-        return this.sections && sectionIndex > (this.getSub() - 1) && sectionIndex < this.sections.length - 1;
+        return this.sections && sectionIndex > 0 && sectionIndex < this.sections.length - 1;
     },
 
     isChannelIndex(sectionIndex: number, channelIndex: number) {
-        return this.sections && this.isCategoryIndex(sectionIndex) && categories[sectionIndex - this.getSub()]?.channels[channelIndex];
+        return this.isCategoryIndex(sectionIndex) && categories[sectionIndex - 1]?.channels[channelIndex];
     },
 
     isChannelHidden(categoryIndex: number, channelIndex: number) {
@@ -224,7 +234,7 @@ export default definePlugin({
     },
 
     renderCategory({ section }: { section: number; }) {
-        const category = categories[section - this.getSub()];
+        const category = categories[section - 1];
         // console.log("renderCat", section, category);
 
         if (!category) return null;
@@ -325,8 +335,10 @@ export default definePlugin({
     },
 
     getChannel(sectionIndex: number, index: number, channels: Record<string, Channel>) {
-        const category = categories[sectionIndex - this.getSub()];
-        const channelId = category?.channels[index];
+        const category = categories[sectionIndex - 1];
+        if (!category) return { channel: null, category: null };
+
+        const channelId = category.channels[index];
 
         // console.log("getChannel", sectionIndex, index, channelId);
 
