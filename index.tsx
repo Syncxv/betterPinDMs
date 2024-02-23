@@ -62,8 +62,8 @@ export default definePlugin({
                     replace: "privateChannelIds:$1.filter(c=>!$self.isPinned(c)),pinCount2:$self.usePinCount($1)"
                 },
                 {
-                    match: /(renderRow:this\.renderRow,sections:)(\[\i,)Math.max\((\i)\.length,1\)/,
-                    replace: "$1$self.sections = $2...this.props.pinCount2??[],Math.max($3.length,0)"
+                    match: /(?<=renderRow:this\.renderRow,sections:)(\[\i,)Math.max\((\i)\.length,1\)]/,
+                    replace: "$self.sections = $1...this.props.pinCount2??[],Math.max($2.length,0)],chunkSize:$self.getChunkSize()"
                 },
                 {
                     match: /this\.renderRow=(\i)=>{/,
@@ -108,6 +108,14 @@ export default definePlugin({
             ]
         },
 
+        // {
+        //     find: ")}compute(",
+        //     replacement: {
+        //         match: /compute\((\i),t\){/,
+        //         replace: "$&$1=0;"
+        //     }
+        // },
+
         // forceUpdate moment
         // https://regex101.com/r/kDN9fO/1
         {
@@ -136,6 +144,7 @@ export default definePlugin({
         // fix alt+shift+up/down
         {
             find: ".getFlattenedGuildIds()],",
+            predicate: () => !Settings.plugins.PinDMs?.enabled,
             replacement: {
                 match: /(?<=\i===\i\.ME\?)\i\.\i\.getPrivateChannelIds\(\)/,
                 replace: "$self.getAllChannels().concat($&.filter(c=>!$self.isPinned(c)))"
@@ -185,6 +194,10 @@ export default definePlugin({
 
     categoryLen() {
         return categories.length;
+    },
+
+    getChunkSize() {
+        return 256 + this.getSections().reduce((acc, v) => acc += v, 0) * 20;
     },
 
     getAllChannels() {
