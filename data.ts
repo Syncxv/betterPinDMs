@@ -17,7 +17,7 @@ export interface Category {
     name: string;
     color: number;
     channels: string[];
-    colapsed?: boolean;
+    collapsed?: boolean;
 }
 
 export const KEYS = {
@@ -155,7 +155,7 @@ export async function collapseCategory(id: string, value = true) {
     const category = categories.find(c => c.id === id);
     if (!category) return;
 
-    category.colapsed = value;
+    category.collapsed = value;
     saveCats(categories);
 }
 
