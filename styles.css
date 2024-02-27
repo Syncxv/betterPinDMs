@@ -35,3 +35,7 @@
 .vc-pindms-collapsed .vc-pindms-collapse-icon {
     transform: rotate(0deg);
 }
+
+[class^="privateChannelsHeaderContainer"] > [class^="headerText"] {
+    cursor: pointer;
+}
