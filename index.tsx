@@ -10,14 +10,13 @@ import { definePluginSettings, Settings } from "@api/Settings";
 import { Devs } from "@utils/constants";
 import { classes } from "@utils/misc";
 import definePlugin, { OptionType } from "@utils/types";
-import { findByPropsLazy, waitFor } from "@webpack";
+import { findByPropsLazy, findStoreLazy, waitFor } from "@webpack";
 import { Alerts, Button, ContextMenuApi, FluxDispatcher, Menu, React, UserStore } from "@webpack/common";
 import { Channel } from "discord-types/general";
 
 import { addContextMenus, removeContextMenus } from "./components/contextMenu";
 import { openCategoryModal, requireSettingsMenu } from "./components/CreateCategoryModal";
-import { canMoveCategory, canMoveCategoryInDirection, categories, initCategories, isPinned, migrateData, moveCategory, removeCategory } from "./data";
-import * as data from "./data";
+import { canMoveCategory, canMoveCategoryInDirection, categories, Category, collapseCategory, initCategories, isPinned, migrateData, moveCategory, removeCategory } from "./data";
 
 interface ChannelComponentProps {
     children: React.ReactNode,
@@ -26,6 +25,8 @@ interface ChannelComponentProps {
 }
 
 const headerClasses = findByPropsLazy("privateChannelsHeaderContainer");
+
+const PrivateChannelSortStore = findStoreLazy("PrivateChannelSortStore") as { getPrivateChannelIds: () => string[]; };
 
 export let instance: any;
 export const forceUpdate = () => instance?.props?._forceUpdate?.();
@@ -151,7 +152,6 @@ export default definePlugin({
             }
         },
     ],
-    data,
     sections: null as number[] | null,
 
     set _instance(i: any) {
@@ -281,7 +281,7 @@ export default definePlugin({
                 className={classes(headerClasses.privateChannelsHeaderContainer, "vc-pindms-section-container", category.collapsed ? "vc-pindms-collapsed" : "")}
                 style={{ color: `#${category.color.toString(16).padStart(6, "0")}` }}
                 onClick={async () => {
-                    await data.collapseCategory(category.id, !category.collapsed);
+                    await collapseCategory(category.id, !category.collapsed);
                     forceUpdate();
                 }}
                 onContextMenu={e => {
@@ -368,8 +368,16 @@ export default definePlugin({
         const category = categories[sectionIndex - 1];
         if (!category) return { channel: null, category: null };
 
-        const channelId = category.channels[index];
+        const channelId = this.getCategoryChannels(category)[index];
 
         return { channel: channels[channelId], category };
+    },
+
+    getCategoryChannels(category: Category) {
+        if (settings.store.sortDmsByNewestMessage) {
+            return PrivateChannelSortStore.getPrivateChannelIds().filter(c => category?.channels?.includes(c));
+        }
+
+        return category?.channels ?? [];
     }
 });
