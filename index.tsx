@@ -14,7 +14,7 @@ import { findByPropsLazy, findStoreLazy, waitFor } from "@webpack";
 import { Alerts, Button, ContextMenuApi, FluxDispatcher, Menu, React, UserStore } from "@webpack/common";
 import { Channel } from "discord-types/general";
 
-import { addContextMenus, removeContextMenus } from "./components/contextMenu";
+import { contextMenus } from "./components/contextMenu";
 import { openCategoryModal, requireSettingsMenu } from "./components/CreateCategoryModal";
 import { canMoveCategory, canMoveCategoryInDirection, categories, Category, collapseCategory, initCategories, isPinned, migrateData, moveCategory, removeCategory } from "./data";
 
@@ -65,7 +65,7 @@ export default definePlugin({
     description: "Pin DMs but with categories",
     authors: [Devs.Aria, Devs.Ven, Devs.Strencher],
     settings,
-
+    contextMenus,
     patches: [
         {
             find: ".privateChannelsHeaderContainer,",
@@ -181,12 +181,7 @@ export default definePlugin({
             return;
         }
 
-        addContextMenus();
         requireSettingsMenu();
-    },
-
-    stop() {
-        removeContextMenus();
     },
 
     makeProps(instance, { sections }: { sections: number[]; }) {
