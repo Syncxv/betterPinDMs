@@ -239,7 +239,8 @@ export default definePlugin({
     isChannelIndex(sectionIndex: number, channelIndex: number) {
         if (settings.store.dmSectioncollapsed && sectionIndex !== 0)
             return true;
-        return this.isCategoryIndex(sectionIndex) && categories[sectionIndex - 1]?.channels[channelIndex];
+        const cat = categories[sectionIndex - 1];
+        return this.isCategoryIndex(sectionIndex) && (cat.channels.length === 0 || cat?.channels[channelIndex]);
     },
 
     isChannelHidden(categoryIndex: number, channelIndex: number) {
