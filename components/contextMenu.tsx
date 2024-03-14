@@ -7,7 +7,7 @@
 import { findGroupChildrenByChildId, NavContextMenuPatchCallback } from "@api/ContextMenu";
 import { Menu } from "@webpack/common";
 
-import { addChannelToCategory, canMoveChannelInDirection, categories, isPinned, moveChannel, removeChannelFromCategory } from "../data";
+import { moveChannelToCategory, canMoveChannelInDirection, categories, isPinned, moveChannel, removeChannelFromCategory } from "../data";
 import { forceUpdate, settings } from "../index";
 import { openCategoryModal } from "./CreateCategoryModal";
 
@@ -17,14 +17,14 @@ function PinMenuItem(channelId: string) {
     return (
         <Menu.MenuItem
             id="better-pin-dm"
-            label="Pin DMs"
+            label="Move DM to category"
         >
 
-            {!pinned && (
+            {(
                 <>
                     <Menu.MenuItem
                         id="add-category"
-                        label="Add Category"
+                        label="New category"
                         color="brand"
                         action={() => openCategoryModal(null, channelId)}
                     />
@@ -35,19 +35,21 @@ function PinMenuItem(channelId: string) {
                             <Menu.MenuItem
                                 id={`pin-category-${category.name}`}
                                 label={category.name}
-                                action={() => addChannelToCategory(channelId, category.id).then(() => forceUpdate())}
+                                disabled={category.channels.includes(channelId)}
+                                action={() => moveChannelToCategory(channelId, category.id).then(() => forceUpdate())}
                             />
                         ))
                     }
                 </>
             )}
 
-            {pinned && (
+            {(
                 <>
                     <Menu.MenuItem
                         id="unpin-dm"
                         label="Unpin DM"
                         color="danger"
+                        disabled={!pinned}
                         action={() => removeChannelFromCategory(channelId).then(() => forceUpdate())}
                     />
 

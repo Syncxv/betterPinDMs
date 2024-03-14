@@ -54,6 +54,23 @@ export async function updateCategory(category: Category) {
     saveCats(categories);
 }
 
+export async function moveChannelToCategory(channelId: string, categoryId: string) {    
+    
+    const targetcategory = categories.find(c => c.id === categoryId);
+    if (!targetcategory) return;
+
+    const oldcategory = categories.find(c => c.channels.includes(channelId));
+    if (oldcategory) oldcategory.channels = oldcategory.channels.filter(c => c !== channelId); 
+    // remove channel from old category if it was in one 
+    
+    if (categoryId !== '0') targetcategory.channels.push(channelId);
+    // if categoryId is not 0, add channel to category
+
+    saveCats(categories);
+
+}
+
+/* substituted with an implementation of "moveChannelToCategory";
 export async function addChannelToCategory(channelId: string, categoryId: string) {
     const category = categories.find(c => c.id === categoryId);
     if (!category) return;
@@ -62,8 +79,8 @@ export async function addChannelToCategory(channelId: string, categoryId: string
 
     category.channels.push(channelId);
     saveCats(categories);
-
-}
+} 
+*/
 
 export async function removeChannelFromCategory(channelId: string) {
     const category = categories.find(c => c.channels.includes(channelId));
@@ -85,6 +102,9 @@ export async function removeCategory(categoryId: string) {
 export function isPinned(id: string) {
     return categories.some(c => c.channels.includes(id));
 }
+
+
+
 
 export const canMoveArrayInDirection = (array: any[], index: number, direction: -1 | 1) => {
     const a = array[index];
@@ -114,7 +134,7 @@ function swapElementsInArray(array: any[], index1: number, index2: number) {
     [array[index1], array[index2]] = [array[index2], array[index1]];
 }
 
-// stolen from PinDMs
+
 export async function moveCategory(id: string, direction: -1 | 1) {
     const a = categories.findIndex(m => m.id === id);
     const b = a + direction;
