@@ -7,7 +7,7 @@
 import { findGroupChildrenByChildId, NavContextMenuPatchCallback } from "@api/ContextMenu";
 import { Menu } from "@webpack/common";
 
-import { addChannelToCategory, canMoveChannelInDirection, categories, isPinned, moveChannel, removeChannelFromCategory } from "../data";
+import { moveChannelToCategory, canMoveChannelInDirection, categories, isPinned, moveChannel, removeChannelFromCategory } from "../data";
 import { forceUpdate, settings } from "../index";
 import { openCategoryModal } from "./CreateCategoryModal";
 
@@ -20,7 +20,8 @@ function PinMenuItem(channelId: string) {
             label="Pin DMs"
         >
 
-            {!pinned && (
+            {//!pinned && 
+            (
                 <>
                     <Menu.MenuItem
                         id="add-category"
@@ -35,7 +36,7 @@ function PinMenuItem(channelId: string) {
                             <Menu.MenuItem
                                 id={`pin-category-${category.name}`}
                                 label={category.name}
-                                action={() => addChannelToCategory(channelId, category.id).then(() => forceUpdate())}
+                                action={() => moveChannelToCategory(channelId, category.id).then(() => forceUpdate())}
                             />
                         ))
                     }
